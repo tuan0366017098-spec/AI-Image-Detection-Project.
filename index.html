@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phân biệt ảnh AI vs THẬT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        h1 { 
+            color: #2c3e50; 
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .upload-section { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px dashed #dee2e6;
+        }
+        .file-info {
+            margin: 15px 0;
+        }
+        .file-name {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        button {
+            background: #e74c3c;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #c0392b;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .image-preview {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .image-preview img {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .loading {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .ai-result {
+            color: #e74c3c;
+            background: #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #e74c3c;
+        }
+        .real-result {
+            color: #27ae60;
+            background: #d5f5e3;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #27ae60;
+        }
+        .confidence-bar {
+            background: #bdc3c7;
+            border-radius: 10px;
+            margin: 10px 0;
+            height: 20px;
+        }
+        .confidence-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #e74c3c, #27ae60);
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Phân biệt ảnh AI vs THẬT</h1>
+        <p class="subtitle">Đồ Án Xử lý ảnh & Thị giác máy tính 2025</p>
+        
+        <div class="upload-section">
+            <h2>Chọn Ảnh để Phân Tích</h2>
+            <div class="file-info">
+                <strong>Chọn tập:</strong> 
+                <span id="fileName" class="file-name">Chưa có tập nào được chọn</span>
+            </div>
+            <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.webp">
+            <p>Định dạng hỗ trợ: JPG, PNG, WEBP.</p>
+        </div>
+        
+        <button id="analyzeBtn" onclick="analyzeImage()">✔ KIỂM TRA PHÂN BIỆT ẢNH</button>
+        
+        <div id="result">
+            <p>Chọn ảnh và nhấn "KIỂM TRA" để phân tích</p>
+        </div>
+        <div id="imagePreview" class="image-preview"></div>
+    </div>
+
+    <script>
+        let currentFile = null;
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                currentFile = file;
+                document.getElementById('fileName').textContent = file.name;
+                
+                // Hiển thị preview ảnh
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imagePreview = document.getElementById('imagePreview');
+                    imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                }
+                reader.readAsDataURL(file);
+
+                // Reset kết quả cũ
+                document.getElementById('result').innerHTML = '<p>Chọn ảnh và nhấn "KIỂM TRA" để phân tích</p>';
+            }
+        });
+
+        async function analyzeImage() {
+            if (!currentFile) {
+                alert('Vui lòng chọn ảnh trước khi phân tích!');
+                return;
+            }
+
+            const button = document.getElementById('analyzeBtn');
+            const resultDiv = document.getElementById('result');
+            
+            // Disable button khi đang xử lý
+            button.disabled = true;
+            button.textContent = '🔄 ĐANG PHÂN TÍCH...';
+            
+            resultDiv.innerHTML = '<p class="loading">🔄 Đang phân tích ảnh bằng AI...</p>';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', currentFile);
+
+                // Gửi ảnh đến backend Python
+                const response = await fetch('http://localhost:8000/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Lỗi server: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Hiển thị kết quả thật từ backend
+                if (data.error) {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ Lỗi: ${data.error}</p>`;
+                } else {
+                    const isAI = data.is_ai_generated;
+                    const confidence = (data.confidence_score * 100).toFixed(1);
+                    const aiConfidence = (data.ai_confidence * 100).toFixed(1);
+                    const realConfidence = (data.real_confidence * 100).toFixed(1);
+                    const label = data.label;
+
+                    const resultClass = isAI ? 'ai-result' : 'real-result';
+                    const resultIcon = isAI ? '🤖' : '✅';
+                    const resultText = isAI ? 'ẢNH DO AI TẠO' : 'ẢNH THẬT';
+
+                    const resultHTML = `
+                        <div class="${resultClass}">
+                            <h3>${resultIcon} ${resultText}</h3>
+                            <p><strong>Độ tin cậy:</strong> ${confidence}%</p>
+                            
+                            <div class="confidence-bar">
+                                <div class="confidence-fill" style="width: ${confidence}%"></div>
+                            </div>
+                            
+                            <p><strong>Chi tiết xác suất:</strong></p>
+                            <ul style="text-align: left; display: inline-block;">
+                                <li>Xác suất AI: <strong>${aiConfidence}%</strong></li>
+                                <li>Xác suất Thật: <strong>${realConfidence}%</strong></li>
+                            </ul>
+                        </div>
+                    `;
+                    resultDiv.innerHTML = resultHTML;
+                }
+            } catch (error) {
+                console.error('Lỗi:', error);
+                resultDiv.innerHTML = `
+                    <p style="color: red;">❌ Lỗi kết nối: ${error.message}</p>
+                    <p>Hãy đảm bảo backend server đang chạy trên cổng 8000</p>
+                    <p>Chạy lệnh: <code>py app.py</code> trong thư mục src</p>
+                `;
+            } finally {
+                // Re-enable button
+                button.disabled = false;
+                button.textContent = '✔ KIỂM TRA PHÂN BIỆT ẢNH';
+            }
+        }
+
+        // Enter key support
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeImage();
+            }
+        });
+    </script>
+</body>
+</html>
